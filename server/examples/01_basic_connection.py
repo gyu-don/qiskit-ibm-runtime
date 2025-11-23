@@ -10,6 +10,14 @@ IMPORTANT: Make sure the local server is running before executing this script:
 """
 
 import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
 
 print("="*60)
 print("Connecting to Local FastAPI Server")
@@ -43,13 +51,12 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 
 try:
     # Configure service to point to localhost
-    # Note: instance parameter triggers validation against IBM Cloud
-    # For local testing, we skip instance validation by not providing it
+    # The localhost patch (applied above) handles IBM Cloud API bypass automatically
     service = QiskitRuntimeService(
         channel="ibm_quantum_platform",
         token="test-token-for-local-server",  # Can be any string for local testing
         url="http://localhost:8000",
-        # instance parameter is intentionally omitted to skip IBM Cloud validation
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
         verify=False  # Disable SSL verification for localhost
     )
 

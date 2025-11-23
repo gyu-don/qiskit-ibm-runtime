@@ -24,9 +24,23 @@ server/
 │   ├── __init__.py          # Package initialization
 │   ├── main.py              # FastAPI application and endpoints
 │   └── models.py            # Pydantic data models
+├── examples/
+│   ├── 01_basic_connection.py      # Basic connection example
+│   ├── 02_list_backends.py         # List backends
+│   ├── 03_backend_details.py       # Get backend details
+│   ├── 04_test_all_endpoints.py    # Test all endpoints
+│   ├── 05_save_account.py          # Save account config
+│   ├── 06_custom_headers.py        # Custom HTTP headers
+│   ├── 07_direct_http.py           # Direct HTTP calls
+│   └── README.md                   # Examples documentation
 ├── docs/
-│   └── API_SPECIFICATION.md # Detailed API specifications
+│   ├── API_SPECIFICATION.md        # Detailed API specifications
+│   ├── CLIENT_SERVER_MAPPING.md    # Client/server mapping
+│   └── DEVELOPMENT_GUIDE.md        # Implementation guide
+├── tests/
+│   └── test_api.py                 # API tests
 ├── requirements.txt         # Python dependencies
+├── IMPLEMENTATION_STATUS.md # Current status and roadmap
 └── README.md               # This file
 ```
 
@@ -102,6 +116,47 @@ curl -X GET "http://localhost:8000/v1/backends" \
   -H "Service-CRN: crn:v1:bluemix:public:quantum-computing:..." \
   -H "IBM-API-Version: 2025-05-01"
 ```
+
+## Using the Client
+
+### Quick Start with qiskit-ibm-runtime
+
+After starting the server, you can connect using the qiskit-ibm-runtime client:
+
+```python
+from qiskit_ibm_runtime import QiskitRuntimeService
+
+# Connect to local server
+service = QiskitRuntimeService(
+    channel="ibm_quantum_platform",
+    token="test-token",
+    url="http://localhost:8000",
+    instance="crn:v1:bluemix:public:quantum-computing:us-east:a/test:test::",
+    verify=False  # Disable SSL for localhost
+)
+
+# Use the service
+backends = service.backends()
+```
+
+### Example Scripts
+
+The `examples/` directory contains ready-to-run examples:
+
+1. **01_basic_connection.py** - Basic connection setup
+2. **02_list_backends.py** - List all backends
+3. **03_backend_details.py** - Get configuration, properties, status
+4. **04_test_all_endpoints.py** - Test all 5 backend endpoints
+5. **05_save_account.py** - Save/load account configuration
+6. **06_custom_headers.py** - HTTP headers and authentication
+7. **07_direct_http.py** - Direct HTTP API calls (using `requests`)
+
+Run any example:
+```bash
+python examples/01_basic_connection.py
+```
+
+See `examples/README.md` for detailed documentation (日本語).
 
 ## Data Models
 

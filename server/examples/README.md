@@ -138,6 +138,122 @@ python examples/07_direct_http.py
 - 認証エラーのテスト
 - APIバージョンエラーのテスト
 
+---
+
+## Qiskitを使った量子回路実行
+
+以下のサンプルは、実際にQiskitで量子回路を作成し、Primitivesを使って実行する例です。
+
+**注意**: これらのサンプルは実際のIBM Quantum Platformに接続して実行します。ローカルサーバーではまだPrimitivesの実行はサポートされていません。
+
+### 08_sampler_basic.py
+**Sampler Primitive の基本**
+
+Samplerを使って量子回路の測定結果を取得します。
+
+```bash
+python examples/08_sampler_basic.py
+```
+
+実装内容：
+- **Example 1**: ベル状態の測定
+- **Example 2**: 複数の回路を一度に実行
+- **Example 3**: カスタムオプション（ショット数、動的デカップリング）
+- 測定カウントの取得と分析
+
+### 09_estimator_basic.py
+**Estimator Primitive の基本**
+
+Estimatorを使って観測可能量の期待値を計算します。
+
+```bash
+python examples/09_estimator_basic.py
+```
+
+実装内容：
+- **Example 1**: Z演算子の期待値（|+⟩状態）
+- **Example 2**: パラメータ化された回路
+- **Example 3**: 複数の観測可能量（ZZ, XX, YY）
+- **Example 4**: エラー緩和オプション（resilience_level）
+- ハミルトニアンの期待値計算
+
+### 10_session_mode.py
+**Session モードでの反復アルゴリズム**
+
+Sessionモードを使ってVQEなどの反復アルゴリズムを効率的に実行します。
+
+```bash
+python examples/10_session_mode.py
+```
+
+実装内容：
+- **Example 1**: 簡易VQE実装（H2分子）
+- **Example 2**: セッション内で複数ジョブを順次実行
+- **Example 3**: コンテキストマネージャの使い方
+- キュー優先度の活用
+- パラメータ最適化ループ
+
+Sessionモードの利点：
+- ジョブが連続して実行される（キュー優先度）
+- 反復アルゴリズムの待ち時間削減
+- VQE, QAOA, パラメータ最適化に最適
+
+### 11_batch_mode.py
+**Batch モードでの並列実行**
+
+Batchモードを使って独立した複数のジョブを効率的に並列実行します。
+
+```bash
+python examples/11_batch_mode.py
+```
+
+実装内容：
+- **Example 1**: パラメータスイープ
+- **Example 2**: 回路深さベンチマーク
+- **Example 3**: ランダム化ベンチマーク（簡易版）
+- 並列実行による効率化
+- コスト効果の高いワークロード実行
+
+Batchモードの利点：
+- 複数の独立したジョブを並列実行
+- 大規模ワークロードに対してコスト効率的
+- パラメータスイープやベンチマークに最適
+
+## サンプルの実行方法
+
+### ローカルサーバーのテスト (01-07)
+
+サンプル01-07はローカルサーバーへの接続をテストします：
+
+```bash
+# サーバーを起動
+cd server
+python -m src.main
+
+# 別のターミナルで
+cd server
+python examples/01_basic_connection.py
+```
+
+### IBM Quantum Platformでの量子回路実行 (08-11)
+
+サンプル08-11は実際のIBM Quantumバックエンドで量子回路を実行します：
+
+```bash
+# まずアカウントを保存（初回のみ）
+python -c "from qiskit_ibm_runtime import QiskitRuntimeService; QiskitRuntimeService.save_account(channel='ibm_quantum', token='YOUR_TOKEN_HERE')"
+
+# サンプルを実行
+python examples/08_sampler_basic.py
+python examples/09_estimator_basic.py
+python examples/10_session_mode.py
+python examples/11_batch_mode.py
+```
+
+IBMトークンの取得方法：
+1. [IBM Quantum Platform](https://quantum.ibm.com/)にアクセス
+2. アカウント設定からAPIトークンをコピー
+
 ## API エンドポイント
 
 ローカルサーバーは以下のエンドポイントを提供します：

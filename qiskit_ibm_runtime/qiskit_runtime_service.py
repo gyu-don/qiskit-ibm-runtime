@@ -204,6 +204,23 @@ class QiskitRuntimeService:
             verify=verify,
         )
 
+        # For localhost URLs, auto-set instance and mock instance data
+        # This prevents any IBM Cloud API calls during initialization
+        is_localhost = self._account.url and (
+            "localhost" in self._account.url or "127.0.0.1" in self._account.url
+        )
+        if is_localhost:
+            if not self._account.instance:
+                self._account.instance = "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance"
+            # Pre-populate _all_instances to prevent list_instances() from being called
+            self._all_instances = [{
+                "crn": self._account.instance,
+                "plan": "lite",
+                "name": "local-test-instance",
+                "tags": [],
+                "pricing_type": "free"
+            }]
+
         if private_endpoint is not None:
             self._account.private_endpoint = private_endpoint
 
@@ -431,12 +448,6 @@ class QiskitRuntimeService:
             account.proxies = proxies
         if verify is not None:
             account.verify = verify
-
-        # For localhost URLs, auto-set a mock instance if not provided (for local testing)
-        if not account.instance:
-            is_localhost = account.url and ("localhost" in account.url or "127.0.0.1" in account.url)
-            if is_localhost:
-                account.instance = "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance"
 
         # if instance is a name, change it to crn format
         if (

@@ -113,7 +113,7 @@ class BackendProvider:
                 clops_h = None
 
             device = BackendDevice(
-                backend_name=backend.name,
+                name=backend.name,
                 backend_version=getattr(config, 'backend_version', '1.0.0'),
                 operational=status.operational,
                 simulator=getattr(config, 'simulator', False),
@@ -137,7 +137,7 @@ class BackendProvider:
         self,
         backend_name: str,
         calibration_id: Optional[str] = None
-    ) -> Optional[BackendConfiguration]:
+    ) -> Optional[Dict[str, Any]]:
         """
         Get backend configuration.
 
@@ -146,7 +146,7 @@ class BackendProvider:
             calibration_id: Optional calibration ID (not used in fake backends)
 
         Returns:
-            BackendConfiguration or None if backend not found
+            BackendConfiguration dict or None if backend not found
         """
         backend = self.get_backend(backend_name)
         if backend is None:
@@ -154,73 +154,15 @@ class BackendProvider:
 
         config = backend.configuration()
 
-        # Convert gate configurations
-        gates = []
-        if hasattr(config, 'gates') and config.gates:
-            for gate in config.gates:
-                gate_config = GateConfig(
-                    name=gate.get('name', ''),
-                    parameters=gate.get('parameters', []),
-                    qasm_def=gate.get('qasm_def', None),
-                    coupling_map=gate.get('coupling_map', None),
-                    latency_map=gate.get('latency_map', None),
-                    conditional=gate.get('conditional', False),
-                    description=gate.get('description', None),
-                )
-                gates.append(gate_config)
+        # Convert to dict using the built-in to_dict method
+        import json
+        from qiskit_ibm_runtime.utils.backend_encoder import BackendEncoder
 
-        # Extract processor type
-        processor_type = None
-        if hasattr(config, 'processor_type') and config.processor_type:
-            pt = config.processor_type
-            processor_type = ProcessorType(
-                family=pt.get('family', 'Unknown'),
-                revision=pt.get('revision', 1.0)
-            )
+        # Serialize and deserialize to get a clean dict
+        config_json = json.dumps(config.to_dict(), cls=BackendEncoder)
+        config_dict = json.loads(config_json)
 
-        # Build configuration response
-        return BackendConfiguration(
-            backend_name=backend.name,
-            backend_version=getattr(config, 'backend_version', '1.0.0'),
-            n_qubits=backend.num_qubits,
-            basis_gates=getattr(config, 'basis_gates', []),
-            gates=gates,
-            local=getattr(config, 'local', False),
-            simulator=getattr(config, 'simulator', False),
-            conditional=getattr(config, 'conditional', False),
-            open_pulse=getattr(config, 'open_pulse', False),
-            memory=getattr(config, 'memory', False),
-            max_shots=getattr(config, 'max_shots', 8192),
-            max_experiments=getattr(config, 'max_experiments', 1),
-            coupling_map=getattr(config, 'coupling_map', None),
-            supported_instructions=getattr(config, 'supported_instructions', None),
-            dynamic_reprate_enabled=getattr(config, 'dynamic_reprate_enabled', False),
-            rep_delay_range=getattr(config, 'rep_delay_range', None),
-            default_rep_delay=getattr(config, 'default_rep_delay', None),
-            meas_map=getattr(config, 'meas_map', None),
-            processor_type=processor_type,
-            dt=getattr(config, 'dt', None),
-            dtm=getattr(config, 'dtm', None),
-            parametric_pulses=getattr(config, 'parametric_pulses', []),
-            n_registers=getattr(config, 'n_registers', None),
-            n_uchannels=getattr(config, 'n_uchannels', 0),
-            u_channel_lo=getattr(config, 'u_channel_lo', []),
-            qubit_lo_range=getattr(config, 'qubit_lo_range', None),
-            meas_lo_range=getattr(config, 'meas_lo_range', None),
-            acquire_alignment=getattr(config, 'acquire_alignment', None),
-            pulse_alignment=getattr(config, 'pulse_alignment', None),
-            meas_kernels=getattr(config, 'meas_kernels', None),
-            discriminators=getattr(config, 'discriminators', None),
-            quantum_volume=getattr(config, 'quantum_volume', None),
-            clops_h=getattr(config, 'clops_h', None),
-            supported_features=getattr(config, 'supported_features', []),
-            multi_meas_enabled=getattr(config, 'multi_meas_enabled', False),
-            timing_constraints=getattr(config, 'timing_constraints', None),
-            online_date=getattr(config, 'online_date', None),
-            credits_required=getattr(config, 'credits_required', True),
-            sample_name=getattr(config, 'sample_name', None),
-            description=getattr(config, 'description', None),
-        )
+        return config_dict
 
     def get_backend_properties(
         self,

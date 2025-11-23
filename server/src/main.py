@@ -262,8 +262,7 @@ async def list_backends(
 
 
 @app.get(
-    "/v1/backends/{backend_id}/configuration",
-    response_model=BackendConfiguration,
+    "/v1/backends/{id}/configuration",
     tags=["backends"],
     summary="Get Backend Configuration",
     description="""
@@ -287,7 +286,7 @@ async def get_backend_configuration(
     ),
     api_version: str = Depends(verify_api_version),
     auth: dict = Depends(verify_authorization),
-) -> BackendConfiguration:
+):
     """
     Get backend configuration.
 
@@ -322,7 +321,7 @@ async def get_backend_configuration(
 
 
 @app.get(
-    "/v1/backends/{backend_id}/defaults",
+    "/v1/backends/{id}/defaults",
     response_model=BackendDefaults,
     tags=["backends"],
     summary="Get Backend Default Settings",
@@ -376,7 +375,7 @@ async def get_backend_defaults(
 
 
 @app.get(
-    "/v1/backends/{backend_id}/properties",
+    "/v1/backends/{id}/properties",
     response_model=BackendProperties,
     tags=["backends"],
     summary="Get Backend Properties",
@@ -443,7 +442,7 @@ async def get_backend_properties(
 
 
 @app.get(
-    "/v1/backends/{backend_id}/status",
+    "/v1/backends/{id}/status",
     response_model=BackendStatus,
     tags=["backends"],
     summary="Get Backend Status",

@@ -459,7 +459,7 @@ class BackendDevice(BaseModel):
 
     Lightweight backend information for list endpoint.
     """
-    backend_name: str = Field(..., description="Backend identifier")
+    name: str = Field(..., description="Backend identifier")
     backend_version: str = Field(..., description="Backend version")
     operational: bool = Field(..., description="Operational status")
     simulator: bool = Field(default=False, description="Is simulator")

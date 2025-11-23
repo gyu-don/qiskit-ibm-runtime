@@ -7,14 +7,16 @@ backend data for the REST API server.
 
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 from datetime import datetime
 
 # Add parent directory to path to import qiskit_ibm_runtime
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
-from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+# Use TYPE_CHECKING to avoid runtime imports
+if TYPE_CHECKING:
+    from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
+    from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
 from .models import (
     BackendDevice,
@@ -39,16 +41,18 @@ class BackendProvider:
 
     def __init__(self):
         """Initialize the backend provider."""
+        # Lazy import to avoid loading qiskit dependencies at module import time
+        from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
         self.provider = FakeProviderForBackendV2()
         self._backends_cache = None
 
-    def _get_all_backends(self) -> List[FakeBackendV2]:
+    def _get_all_backends(self) -> List[Any]:
         """Get all available backends."""
         if self._backends_cache is None:
             self._backends_cache = self.provider.backends()
         return self._backends_cache
 
-    def get_backend(self, backend_name: str) -> Optional[FakeBackendV2]:
+    def get_backend(self, backend_name: str) -> Optional[Any]:
         """
         Get a specific backend by name.
 
@@ -89,6 +93,25 @@ class BackendProvider:
                     revision=pt.get('revision', 1.0)
                 )
 
+            # Extract quantum_volume and clops_h with proper type handling
+            quantum_volume = getattr(config, 'quantum_volume', None)
+            if quantum_volume is not None and quantum_volume != 'None':
+                try:
+                    quantum_volume = int(quantum_volume)
+                except (ValueError, TypeError):
+                    quantum_volume = None
+            else:
+                quantum_volume = None
+
+            clops_h = getattr(config, 'clops_h', None)
+            if clops_h is not None and clops_h != 'None':
+                try:
+                    clops_h = float(clops_h)
+                except (ValueError, TypeError):
+                    clops_h = None
+            else:
+                clops_h = None
+
             device = BackendDevice(
                 backend_name=backend.name,
                 backend_version=getattr(config, 'backend_version', '1.0.0'),
@@ -96,8 +119,8 @@ class BackendProvider:
                 simulator=getattr(config, 'simulator', False),
                 n_qubits=backend.num_qubits,
                 processor_type=processor_type,
-                quantum_volume=getattr(config, 'quantum_volume', None),
-                clops_h=getattr(config, 'clops_h', None),
+                quantum_volume=quantum_volume,
+                clops_h=clops_h,
             )
 
             # Add wait time if requested

@@ -8,7 +8,7 @@ import sys
 import uuid
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, TYPE_CHECKING
 from datetime import datetime
 from enum import Enum
 import threading
@@ -16,8 +16,10 @@ import threading
 # Add parent directory to path to import qiskit_ibm_runtime
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
-from qiskit_ibm_runtime.fake_provider.local_runtime_job import LocalRuntimeJob
+# Use TYPE_CHECKING to avoid runtime imports
+if TYPE_CHECKING:
+    from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
+    from qiskit_ibm_runtime.fake_provider.local_runtime_job import LocalRuntimeJob
 
 from .backend_provider import get_backend_provider
 
@@ -58,7 +60,7 @@ class JobInfo:
         self.params = params
         self.created_at = created_at
         self.status = JobStatus.QUEUED
-        self.runtime_job: Optional[LocalRuntimeJob] = None
+        self.runtime_job: Optional[Any] = None  # LocalRuntimeJob, using Any to avoid import
         self.error_message: Optional[str] = None
         self.result_data: Optional[Any] = None
 
@@ -72,6 +74,8 @@ class JobManager:
 
     def __init__(self):
         """Initialize the job manager."""
+        # Lazy import to avoid loading qiskit dependencies at module import time
+        from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
         self.service = QiskitRuntimeLocalService()
         self.backend_provider = get_backend_provider()
         self.jobs: Dict[str, JobInfo] = {}

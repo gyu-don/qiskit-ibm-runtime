@@ -1,8 +1,8 @@
 """
 Monkey patch for qiskit-ibm-runtime to enable localhost testing.
 
-This module patches CloudAccount.list_instances() to return mock data
-for localhost URLs, preventing IBM Cloud API calls during local development.
+This module patches CloudAccount.list_instances() and CloudAuth to prevent
+IBM Cloud API calls during local development.
 
 Usage:
     Import this module at the top of your example scripts:
@@ -26,15 +26,18 @@ from typing import List, Dict, Any
 
 def apply_localhost_patch() -> None:
     """
-    Apply monkey patch to CloudAccount.list_instances() for localhost support.
+    Apply monkey patches for localhost support.
 
-    This patches the list_instances method to return mock instance data when
-    the account URL contains 'localhost' or '127.0.0.1', preventing calls to
-    IBM Cloud Global Search API during local testing.
+    This patches:
+    1. CloudAccount.list_instances() - returns mock instance data for localhost
+    2. CloudAuth.__init__() and get_headers() - bypasses IAM authentication for localhost
+
+    This prevents all IBM Cloud API calls during local testing.
     """
     from qiskit_ibm_runtime.accounts.account import CloudAccount
+    from qiskit_ibm_runtime.api.auth import CloudAuth
 
-    # Save original method
+    # Patch 1: CloudAccount.list_instances()
     _original_list_instances = CloudAccount.list_instances
 
     def _patched_list_instances(self) -> List[Dict[str, Any]]:
@@ -57,5 +60,35 @@ def apply_localhost_patch() -> None:
         # For non-localhost URLs, use original implementation
         return _original_list_instances(self)
 
-    # Apply the patch
     CloudAccount.list_instances = _patched_list_instances
+
+    # Patch 2: CloudAuth to bypass IAM for localhost
+    _original_cloudauth_init = CloudAuth.__init__
+
+    def _patched_cloudauth_init(
+        self,
+        api_key: str,
+        crn: str,
+        private: bool = False,
+        proxies = None,
+        verify: bool = True,
+    ):
+        """Patched CloudAuth.__init__ that skips IAM setup for localhost."""
+        self.crn = crn
+        self.api_key = api_key
+        self.private = private
+        self.proxies = proxies
+        self.verify = verify
+        # Only set up IAM if not localhost (determined later in get_headers)
+        self.tm = None  # Will be created on-demand if needed
+
+    def _patched_get_headers(self) -> Dict:
+        """Patched get_headers that returns simple headers for localhost."""
+        # For localhost testing, return simple auth headers without IAM
+        return {
+            "Service-CRN": self.crn,
+            "Authorization": f"Bearer {self.api_key}"
+        }
+
+    CloudAuth.__init__ = _patched_cloudauth_init
+    CloudAuth.get_headers = _patched_get_headers

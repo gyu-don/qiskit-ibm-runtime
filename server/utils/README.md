@@ -8,11 +8,19 @@ This module provides a monkey patch for `qiskit-ibm-runtime` to enable localhost
 
 ### Problem
 
-When using `QiskitRuntimeService` with a localhost URL, the service attempts to validate instances by calling IBM Cloud Global Search API, which fails for localhost servers.
+When using `QiskitRuntimeService` with a localhost URL, the service attempts to:
+1. Validate instances by calling IBM Cloud Global Search API
+2. Authenticate via IBM Cloud IAM (Identity and Access Management)
+
+Both of these fail for localhost servers because they try to connect to IBM Cloud endpoints.
 
 ### Solution
 
-The `apply_localhost_patch()` function monkey patches `CloudAccount.list_instances()` to return mock instance data for localhost URLs, preventing any IBM Cloud API calls.
+The `apply_localhost_patch()` function applies two monkey patches:
+1. `CloudAccount.list_instances()` - returns mock instance data for localhost
+2. `CloudAuth.__init__()` and `get_headers()` - bypasses IAM authentication for localhost
+
+This prevents all IBM Cloud API calls during local testing.
 
 ### Usage
 

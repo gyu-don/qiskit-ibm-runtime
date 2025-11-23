@@ -542,3 +542,93 @@ class ErrorResponse(BaseModel):
             "status_code": 404
         }
     })
+
+
+# ============================================================================
+# Job Models
+# ============================================================================
+
+class JobProgram(BaseModel):
+    """Program information for a job."""
+    id: str = Field(..., description="Program ID (e.g., 'sampler', 'estimator')")
+
+
+class JobState(BaseModel):
+    """Job state information."""
+    status: str = Field(..., description="Job status (QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED)")
+    reason: Optional[str] = Field(None, description="Reason for failure or cancellation")
+
+
+class JobCreateRequest(BaseModel):
+    """Request to create a new job."""
+    program_id: str = Field(..., description="Program ID ('sampler' or 'estimator')")
+    backend: str = Field(..., description="Backend name to run on")
+    params: Dict[str, Any] = Field(..., description="Job parameters including 'pubs' for inputs")
+    options: Optional[Dict[str, Any]] = Field(None, description="Runtime options")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "program_id": "sampler",
+            "backend": "fake_manila",
+            "params": {
+                "pubs": []
+            },
+            "options": {
+                "default_shots": 1024
+            }
+        }
+    })
+
+
+class JobResponse(BaseModel):
+    """Response for job status."""
+    id: str = Field(..., description="Job ID")
+    program: JobProgram = Field(..., description="Program information")
+    backend: str = Field(..., description="Backend name")
+    state: JobState = Field(..., description="Job state")
+    created: str = Field(..., description="Creation timestamp (ISO 8601)")
+    session_id: str = Field(..., description="Session ID")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "id": "job-abc123",
+            "program": {"id": "sampler"},
+            "backend": "fake_manila",
+            "state": {
+                "status": "COMPLETED",
+                "reason": None
+            },
+            "created": "2024-11-20T10:46:00Z",
+            "session_id": "job-abc123"
+        }
+    })
+
+
+class JobResultResponse(BaseModel):
+    """Response for job results."""
+    results: Any = Field(..., description="Job results")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Result metadata")
+
+    model_config = ConfigDict(extra='allow')
+
+
+class JobListResponse(BaseModel):
+    """Response for job list."""
+    jobs: List[JobResponse] = Field(..., description="List of jobs")
+    count: int = Field(..., description="Total number of jobs matching filters")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "jobs": [
+                {
+                    "id": "job-abc123",
+                    "program": {"id": "sampler"},
+                    "backend": "fake_manila",
+                    "state": {"status": "COMPLETED", "reason": None},
+                    "created": "2024-11-20T10:46:00Z",
+                    "session_id": "job-abc123"
+                }
+            ],
+            "count": 1
+        }
+    })

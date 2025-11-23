@@ -29,7 +29,15 @@ from .models import (
     BackendStatus,
     ErrorResponse,
     ErrorDetail,
+    JobCreateRequest,
+    JobResponse,
+    JobResultResponse,
+    JobListResponse,
+    JobProgram,
+    JobState,
 )
+from .backend_provider import get_backend_provider
+from .job_manager import get_job_manager
 
 
 # ============================================================================
@@ -249,12 +257,8 @@ async def list_backends(
         - If fields includes 'wait_time_seconds', computes estimated wait time
         - Generates audit event: quantum-computing.device.read
     """
-    # TODO: Implement actual backend listing logic
-    # This is a mock response for demonstration
-    raise HTTPException(
-        status_code=501,
-        detail="Endpoint not yet implemented. This is a mock specification."
-    )
+    provider = get_backend_provider()
+    return provider.list_backends(fields=fields)
 
 
 @app.get(
@@ -305,11 +309,16 @@ async def get_backend_configuration(
         - Includes gate definitions, coupling map, processor type, etc.
         - Generates audit event: quantum-computing.device.read
     """
-    # TODO: Implement backend configuration retrieval
-    raise HTTPException(
-        status_code=501,
-        detail="Endpoint not yet implemented. This is a mock specification."
-    )
+    provider = get_backend_provider()
+    config = provider.get_backend_configuration(backend_id, calibration_id)
+
+    if config is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Backend not found: {backend_id}"
+        )
+
+    return config
 
 
 @app.get(
@@ -354,11 +363,16 @@ async def get_backend_defaults(
         - Returns qubit/measurement frequencies, pulse library, and gate->pulse mappings
         - Generates audit event: quantum-computing.device.read
     """
-    # TODO: Implement defaults retrieval
-    raise HTTPException(
-        status_code=501,
-        detail="Endpoint not yet implemented. This is a mock specification."
-    )
+    provider = get_backend_provider()
+    defaults = provider.get_backend_defaults(backend_id)
+
+    if defaults is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Backend defaults not available for: {backend_id}"
+        )
+
+    return defaults
 
 
 @app.get(
@@ -416,11 +430,16 @@ async def get_backend_properties(
         - Includes per-gate properties (gate_error, gate_length)
         - Generates audit event: quantum-computing.device.read
     """
-    # TODO: Implement properties retrieval
-    raise HTTPException(
-        status_code=501,
-        detail="Endpoint not yet implemented. This is a mock specification."
-    )
+    provider = get_backend_provider()
+    properties = provider.get_backend_properties(backend_id, calibration_id, updated_before)
+
+    if properties is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Backend properties not available for: {backend_id}"
+        )
+
+    return properties
 
 
 @app.get(
@@ -465,10 +484,284 @@ async def get_backend_status(
         - Status is updated frequently (near real-time)
         - Generates audit event: quantum-computing.device.read
     """
-    # TODO: Implement status retrieval
-    raise HTTPException(
-        status_code=501,
-        detail="Endpoint not yet implemented. This is a mock specification."
+    provider = get_backend_provider()
+    status = provider.get_backend_status(backend_id)
+
+    if status is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Backend not found: {backend_id}"
+        )
+
+    return status
+
+
+# ============================================================================
+# Job Endpoints
+# ============================================================================
+
+@app.post(
+    "/v1/jobs",
+    response_model=JobResponse,
+    status_code=201,
+    tags=["jobs"],
+    summary="Create Runtime Job",
+    description="""
+    Create and execute a runtime job (sampler or estimator).
+
+    Required IAM action: quantum-computing.job.create
+    """
+)
+async def create_job(
+    request: JobCreateRequest,
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> JobResponse:
+    """
+    Create a new runtime job.
+
+    Args:
+        request: Job creation request
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        JobResponse with job ID and initial status
+
+    Raises:
+        HTTPException: 400 if invalid parameters, 404 if backend not found
+    """
+    job_manager = get_job_manager()
+
+    try:
+        job_id = job_manager.create_job(
+            program_id=request.program_id,
+            backend_name=request.backend,
+            params=request.params,
+            options=request.options
+        )
+
+        # Get job status
+        status = job_manager.get_job_status(job_id)
+
+        return JobResponse(
+            id=status['id'],
+            program=JobProgram(id=status['program']['id']),
+            backend=status['backend'],
+            state=JobState(
+                status=status['state']['status'],
+                reason=status['state']['reason']
+            ),
+            created=status['created'],
+            session_id=status['session_id']
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get(
+    "/v1/jobs/{job_id}",
+    response_model=JobResponse,
+    tags=["jobs"],
+    summary="Get Job Status",
+    description="""
+    Get the status of a runtime job.
+
+    Required IAM action: quantum-computing.job.read
+    """
+)
+async def get_job_status_endpoint(
+    job_id: str = Path(..., description="Job ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> JobResponse:
+    """
+    Get job status.
+
+    Args:
+        job_id: Job ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        JobResponse with current status
+
+    Raises:
+        HTTPException: 404 if job not found
+    """
+    job_manager = get_job_manager()
+    status = job_manager.get_job_status(job_id)
+
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    return JobResponse(
+        id=status['id'],
+        program=JobProgram(id=status['program']['id']),
+        backend=status['backend'],
+        state=JobState(
+            status=status['state']['status'],
+            reason=status['state']['reason']
+        ),
+        created=status['created'],
+        session_id=status['session_id']
+    )
+
+
+@app.get(
+    "/v1/jobs/{job_id}/results",
+    response_model=JobResultResponse,
+    tags=["jobs"],
+    summary="Get Job Results",
+    description="""
+    Get the results of a completed job.
+
+    Required IAM action: quantum-computing.job.read
+    """
+)
+async def get_job_results(
+    job_id: str = Path(..., description="Job ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> JobResultResponse:
+    """
+    Get job results.
+
+    Args:
+        job_id: Job ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        JobResultResponse with results
+
+    Raises:
+        HTTPException: 404 if job not found, 400 if job not completed
+    """
+    job_manager = get_job_manager()
+
+    # Check if job exists
+    status = job_manager.get_job_status(job_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    # Check if job is completed
+    if status['state']['status'] != 'COMPLETED':
+        raise HTTPException(
+            status_code=400,
+            detail=f"Job not completed. Current status: {status['state']['status']}"
+        )
+
+    # Get results
+    result = job_manager.get_job_result(job_id)
+    if result is None:
+        raise HTTPException(status_code=500, detail="Failed to retrieve results")
+
+    return JobResultResponse(
+        results=result['results'],
+        metadata=result['metadata']
+    )
+
+
+@app.delete(
+    "/v1/jobs/{job_id}",
+    status_code=204,
+    tags=["jobs"],
+    summary="Cancel Job",
+    description="""
+    Cancel a running or queued job.
+
+    Required IAM action: quantum-computing.job.delete
+    """
+)
+async def cancel_job(
+    job_id: str = Path(..., description="Job ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+):
+    """
+    Cancel a job.
+
+    Args:
+        job_id: Job ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Raises:
+        HTTPException: 404 if job not found
+    """
+    job_manager = get_job_manager()
+
+    if not job_manager.cancel_job(job_id):
+        raise HTTPException(status_code=404, detail=f"Job not found: {job_id}")
+
+    return None
+
+
+@app.get(
+    "/v1/jobs",
+    response_model=JobListResponse,
+    tags=["jobs"],
+    summary="List Jobs",
+    description="""
+    List runtime jobs with optional filters.
+
+    Required IAM action: quantum-computing.job.read
+    """
+)
+async def list_jobs(
+    limit: int = Query(10, description="Maximum number of jobs to return", ge=1, le=100),
+    skip: int = Query(0, description="Number of jobs to skip", ge=0),
+    backend: Optional[str] = Query(None, description="Filter by backend name"),
+    program: Optional[str] = Query(None, description="Filter by program ID"),
+    state: Optional[str] = Query(None, description="Filter by job state"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> JobListResponse:
+    """
+    List jobs.
+
+    Args:
+        limit: Maximum number of jobs to return
+        skip: Number of jobs to skip
+        backend: Filter by backend name
+        program: Filter by program ID
+        state: Filter by state
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        JobListResponse with list of jobs
+    """
+    job_manager = get_job_manager()
+
+    job_statuses = job_manager.list_jobs(
+        limit=limit,
+        skip=skip,
+        backend_name=backend,
+        program_id=program,
+        state=state
+    )
+
+    jobs = [
+        JobResponse(
+            id=status['id'],
+            program=JobProgram(id=status['program']['id']),
+            backend=status['backend'],
+            state=JobState(
+                status=status['state']['status'],
+                reason=status['state']['reason']
+            ),
+            created=status['created'],
+            session_id=status['session_id']
+        )
+        for status in job_statuses
+    ]
+
+    return JobListResponse(
+        jobs=jobs,
+        count=len(jobs)
     )
 
 

@@ -5,8 +5,17 @@ This example systematically tests all backend-related endpoints
 available in the local mock server.
 """
 
-from qiskit_ibm_runtime import QiskitRuntimeService
 import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
+from qiskit_ibm_runtime import QiskitRuntimeService
 
 def test_list_backends(service):
     """Test GET /v1/backends"""
@@ -115,7 +124,7 @@ def main():
             channel="ibm_quantum_platform",
             token="test-token",
             url="http://localhost:8000",
-            # instance parameter omitted to skip IBM Cloud validation
+            instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
             verify=False
         )
         print("✓ Connected successfully")

@@ -5,6 +5,16 @@ This example shows how to save the local server configuration
 so you don't have to specify it every time.
 """
 
+import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 def save_local_account():
@@ -15,6 +25,7 @@ def save_local_account():
         channel="ibm_quantum_platform",
         token="test-token-local",
         url="http://localhost:8000",
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
         name="local_mock_server",  # Give it a name
         set_as_default=False,  # Don't set as default (to avoid conflicts)
         overwrite=True  # Overwrite if already exists

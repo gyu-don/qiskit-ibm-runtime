@@ -8,6 +8,16 @@ Note: The server currently returns 501 (Not Implemented) for all endpoints.
 Once the server is implemented, this will return actual backend data.
 """
 
+import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
 from qiskit_ibm_runtime import QiskitRuntimeService
 
 def main():
@@ -16,7 +26,7 @@ def main():
         channel="ibm_quantum_platform",
         token="test-token",
         url="http://localhost:8000",
-        # instance parameter omitted to skip IBM Cloud validation
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
         verify=False
     )
 

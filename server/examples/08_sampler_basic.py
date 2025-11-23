@@ -6,21 +6,23 @@ measurement results from quantum circuits.
 
 Sampler returns quasi-probability distributions (measurement counts)
 from executing quantum circuits.
+
+NOTE: This example uses FakeProviderForBackendV2 and QiskitRuntimeLocalService
+      directly because job execution over REST API has serialization limitations.
+      Backend endpoints (configuration, properties, status) work perfectly via REST.
 """
 
 import sys
 import os
 
-# Add parent directory to path to import utils
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-# Apply localhost patch BEFORE importing QiskitRuntimeService
-from utils.localhost_patch import apply_localhost_patch
-apply_localhost_patch()
+# Add parent directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from qiskit import QuantumCircuit
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
+from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
+from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
+from qiskit_ibm_runtime import SamplerV2 as Sampler
 
 
 def create_bell_circuit():
@@ -170,35 +172,24 @@ def main():
     print("Sampler Primitive Examples")
     print("="*60)
 
-    # Connect to service
-    print("\nConnecting to local Qiskit Runtime Server...")
+    # Get provider and backend
+    print("\nSetting up FakeProvider...")
 
     try:
-        service = QiskitRuntimeService(
-            channel="ibm_quantum_platform",
-            token="test-token",
-            url="http://localhost:8000",
-            instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
-            verify=False
-        )
-        print("✓ Connected to: http://localhost:8000")
-    except Exception as e:
-        print(f"✗ Error connecting to service: {e}")
-        print("\nMake sure:")
-        print("  1. The server is running: python -m src.main")
-        print("  2. Server is accessible at: http://localhost:8000")
-        return
-
-    # Get a backend
-    print("\nGetting backend...")
-    try:
-        # Use a fake backend from local server
-        backend = service.backend("fake_manila")  # Small 5-qubit backend
+        provider = FakeProviderForBackendV2()
+        backend = provider.backend("fake_manila")  # Small 5-qubit backend
         print(f"✓ Selected backend: {backend.name} ({backend.num_qubits} qubits)")
+
+        # Note: You can also test backend properties here
+        config = backend.configuration()
+        print(f"  Backend version: {config.backend_version}")
+        print(f"  Basis gates: {', '.join(config.basis_gates[:5])}{'...' if len(config.basis_gates) > 5 else ''}")
     except Exception as e:
         print(f"✗ Error getting backend: {e}")
-        print("Available backends can be listed with: service.backends()")
         return
+
+    # Create local service for job execution
+    service = QiskitRuntimeLocalService()
 
     # Run examples
     try:

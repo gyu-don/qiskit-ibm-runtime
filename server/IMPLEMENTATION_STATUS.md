@@ -237,6 +237,13 @@ server/
 3. **Pulse Defaults:** Most fake backends don't have pulse defaults (404 expected)
 4. **Calibration History:** `calibration_id` parameter currently ignored
 5. **Scalability:** In-memory storage not suitable for production
+6. **Job Execution (Important):** Job execution endpoints are implemented but have limitations:
+   - When using SamplerV2/EstimatorV2 through qiskit-ibm-runtime client, circuit serialization
+     over HTTP JSON causes Qiskit objects to lose type information
+   - Direct job execution through REST API requires custom serialization (e.g., QPY format)
+   - **Workaround**: Use `FakeProviderForBackendV2` and `QiskitRuntimeLocalService` directly
+     in Python instead of going through the REST API for job execution
+   - Backend endpoints (configuration, properties, status) work perfectly for testing backends
 
 ## Testing Status
 

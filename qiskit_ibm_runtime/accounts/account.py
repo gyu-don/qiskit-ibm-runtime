@@ -319,7 +319,26 @@ class CloudAccount(Account):
         self.instance = crn[0]
 
     def list_instances(self) -> List[Dict[str, Any]]:
-        """Retrieve all crns with the IBM Cloud Global Search API."""
+        """Retrieve all crns with the IBM Cloud Global Search API.
+
+        For localhost URLs, returns a mock instance to enable local testing
+        without requiring IBM Cloud API access.
+        """
+        # Detect localhost/local development server
+        if self.url and ("localhost" in self.url or "127.0.0.1" in self.url):
+            logger.info(
+                "Detected localhost URL (%s). Returning mock instance for local testing.",
+                self.url
+            )
+            return [{
+                "crn": "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance",
+                "plan": "lite",
+                "name": "local-test-instance",
+                "tags": [],
+                "pricing_type": "free"
+            }]
+
+        # Standard IBM Cloud API call for production use
         iam_url = get_iam_api_url(self.url)
         authenticator = IAMAuthenticator(self.token, url=iam_url)
         client = GlobalSearchV2(authenticator=authenticator)

@@ -230,13 +230,18 @@ class QiskitRuntimeService:
         self._plans_preference = plans_preference or self._account.plans_preference
         self._tags = tags or self._account.tags
         if self._account.instance:
-            if self._account.instance not in [inst["crn"] for inst in self.instances()]:
-                raise IBMInputValueError(
-                    "The given API token is associated with an account that does not have access to "
-                    f"the instance {self._account.instance}. "
-                    "To use this instance, use an API token generated from the account "
-                    "with this instance available."
-                )
+            # Skip instance validation for localhost URLs (local testing)
+            is_localhost = self._account.url and (
+                "localhost" in self._account.url or "127.0.0.1" in self._account.url
+            )
+            if not is_localhost:
+                if self._account.instance not in [inst["crn"] for inst in self.instances()]:
+                    raise IBMInputValueError(
+                        "The given API token is associated with an account that does not have access to "
+                        f"the instance {self._account.instance}. "
+                        "To use this instance, use an API token generated from the account "
+                        "with this instance available."
+                    )
             self._default_instance = True
             self._api_clients = {self._account.instance: RuntimeClient(self._client_params)}
         else:
@@ -658,7 +663,20 @@ class QiskitRuntimeService:
                 ]
             return [(default_crn, self._discover_backends_from_instance(default_crn))]
         if not self._all_instances:
-            self._all_instances = self._account.list_instances()
+            # For localhost URLs, use mock instance data without calling list_instances()
+            is_localhost = self._account.url and (
+                "localhost" in self._account.url or "127.0.0.1" in self._account.url
+            )
+            if is_localhost:
+                self._all_instances = [{
+                    "crn": "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance",
+                    "plan": "lite",
+                    "name": "local-test-instance",
+                    "tags": [],
+                    "pricing_type": "free"
+                }]
+            else:
+                self._all_instances = self._account.list_instances()
         if not self._backend_instance_groups:
             self._backend_instance_groups = [
                 {

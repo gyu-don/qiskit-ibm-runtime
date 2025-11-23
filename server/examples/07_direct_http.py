@@ -76,7 +76,7 @@ def test_list_backends_with_fields():
     return response.status_code in [200, 501]
 
 
-def test_backend_configuration(backend_id="ibm_brisbane"):
+def test_backend_configuration(backend_id="fake_brisbane"):
     """Test getting backend configuration."""
     print(f"\n4. Get Backend Configuration ({backend_id})")
     print("-" * 60)
@@ -102,7 +102,7 @@ def test_backend_configuration(backend_id="ibm_brisbane"):
     return response.status_code in [200, 404, 501]
 
 
-def test_backend_properties(backend_id="ibm_brisbane"):
+def test_backend_properties(backend_id="fake_brisbane"):
     """Test getting backend properties."""
     print(f"\n5. Get Backend Properties ({backend_id})")
     print("-" * 60)
@@ -128,7 +128,7 @@ def test_backend_properties(backend_id="ibm_brisbane"):
     return response.status_code in [200, 404, 501]
 
 
-def test_backend_status(backend_id="ibm_brisbane"):
+def test_backend_status(backend_id="fake_brisbane"):
     """Test getting backend status."""
     print(f"\n6. Get Backend Status ({backend_id})")
     print("-" * 60)
@@ -150,7 +150,7 @@ def test_backend_status(backend_id="ibm_brisbane"):
     return response.status_code in [200, 404, 501]
 
 
-def test_backend_defaults(backend_id="ibm_brisbane"):
+def test_backend_defaults(backend_id="fake_brisbane"):
     """Test getting backend defaults."""
     print(f"\n7. Get Backend Defaults ({backend_id})")
     print("-" * 60)

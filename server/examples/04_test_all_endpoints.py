@@ -137,8 +137,8 @@ def main():
 
     results.append(("List Backends", test_list_backends(service)))
 
-    # Test specific backend
-    backend_name = "ibm_brisbane"
+    # Test specific backend (use fake_ prefix for local server)
+    backend_name = "fake_brisbane"
     results.append(("Backend Configuration", test_backend_configuration(service, backend_name)))
     results.append(("Backend Properties", test_backend_properties(service, backend_name)))
     results.append(("Backend Status", test_backend_status(service, backend_name)))
@@ -162,11 +162,12 @@ def main():
     print(f"Failed: {failed}")
     print(f"Skipped: {skipped}")
 
-    print("\n" + "="*60)
-    print("Note: The local server currently returns 501 (Not Implemented)")
-    print("Once implemented, these tests should all pass.")
-    print("See: server/IMPLEMENTATION_STATUS.md")
-    print("="*60)
+    if failed > 0:
+        print("\n" + "="*60)
+        print("Note: Some tests failed. Make sure:")
+        print("  1. The server is running: python -m src.main")
+        print("  2. Server is accessible at: http://localhost:8000")
+        print("="*60)
 
 
 if __name__ == "__main__":

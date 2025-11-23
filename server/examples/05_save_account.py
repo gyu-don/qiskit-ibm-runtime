@@ -99,7 +99,8 @@ def main():
         backends = service.backends()
         print(f"✓ Service works! Found {len(backends)} backends")
     except Exception as e:
-        print(f"⚠ Server returned error (expected if not implemented): {type(e).__name__}")
+        print(f"⚠ Server error: {type(e).__name__}: {e}")
+        print("   Make sure the server is running: python -m src.main")
 
     # 6. Optionally delete (uncomment to clean up)
     # print("\n" + "="*60)

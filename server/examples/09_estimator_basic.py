@@ -9,6 +9,16 @@ Estimator calculates ⟨ψ|H|ψ⟩ where:
 - H is an observable (Hamiltonian)
 """
 
+import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import RealAmplitudes
 from qiskit.quantum_info import SparsePauliOp
@@ -227,41 +237,34 @@ def main():
     print("="*60)
 
     # Connect to service
-    print("\nConnecting to Qiskit Runtime Service...")
+    print("\nConnecting to local Qiskit Runtime Server...")
 
-    # For local server (when implemented):
-    # service = QiskitRuntimeService(
-    #     channel="ibm_quantum_platform",
-    #     token="test-token",
-    #     url="http://localhost:8000",
-    #     instance="crn:v1:bluemix:public:quantum-computing:us-east:a/test:test::",
-    #     verify=False
-    # )
-
-    # For IBM Quantum Platform:
     try:
-        service = QiskitRuntimeService()
+        service = QiskitRuntimeService(
+            channel="ibm_quantum_platform",
+            token="test-token",
+            url="http://localhost:8000",
+            instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+            verify=False
+        )
+        print("✓ Connected to: http://localhost:8000")
     except Exception as e:
-        print(f"Error connecting to service: {e}")
-        print("\nTo use this example:")
-        print("1. Save your IBM Quantum account:")
-        print("   QiskitRuntimeService.save_account(channel='ibm_quantum', token='YOUR_TOKEN')")
-        print("2. Or use the local mock server (when implemented)")
+        print(f"✗ Error connecting to service: {e}")
+        print("\nMake sure:")
+        print("  1. The server is running: python -m src.main")
+        print("  2. Server is accessible at: http://localhost:8000")
         return
 
     # Get a backend
-    print("Getting backend...")
+    print("\nGetting backend...")
     try:
-        backend = service.least_busy(operational=True, simulator=False)
-        print(f"Selected backend: {backend.name}")
+        # Use a fake backend from local server
+        backend = service.backend("fake_manila")  # Small 5-qubit backend
+        print(f"✓ Selected backend: {backend.name} ({backend.num_qubits} qubits)")
     except Exception as e:
-        print(f"Error getting backend: {e}")
-        print("Trying to use a simulator...")
-        try:
-            backend = service.backend("ibmq_qasm_simulator")
-        except:
-            print("No backend available. Please check your account setup.")
-            return
+        print(f"✗ Error getting backend: {e}")
+        print("Available backends can be listed with: service.backends()")
+        return
 
     # Run examples
     try:
@@ -272,8 +275,8 @@ def main():
 
     except Exception as e:
         print(f"\n⚠ Error running examples: {type(e).__name__}: {e}")
-        print("\nNote: If using local server, it needs to be implemented first.")
-        print("See server/IMPLEMENTATION_STATUS.md")
+        import traceback
+        traceback.print_exc()
 
     print("\n" + "="*60)
     print("Examples completed!")

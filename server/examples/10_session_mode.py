@@ -11,6 +11,17 @@ Session benefits:
 - Efficient for optimization loops
 """
 
+
+import sys
+import os
+
+# Add parent directory to path to import utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import RealAmplitudes
 from qiskit.quantum_info import SparsePauliOp
@@ -237,7 +248,13 @@ def main():
     print("\nConnecting to Qiskit Runtime Service...")
 
     try:
-        service = QiskitRuntimeService()
+        service = QiskitRuntimeService(
+            channel="ibm_quantum_platform",
+            token="test-token",
+            url="http://localhost:8000",
+            instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+            verify=False
+        )
     except Exception as e:
         print(f"Error connecting to service: {e}")
         print("\nTo use this example:")
@@ -248,7 +265,7 @@ def main():
     # Get a backend
     print("Getting backend...")
     try:
-        backend = service.least_busy(operational=True, simulator=False)
+        backend = service.backend("fake_manila")  # Small 5-qubit backend
         print(f"Selected backend: {backend.name}")
     except Exception as e:
         print(f"Error getting backend: {e}")

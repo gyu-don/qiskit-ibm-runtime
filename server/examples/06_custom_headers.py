@@ -67,15 +67,11 @@ def main():
             print(f"    Simulator: {backend.configuration().simulator}")
 
     except Exception as e:
-        print(f"\n⚠ Server error (expected if not implemented):")
+        print(f"\n⚠ Server error:")
         print(f"   {type(e).__name__}: {e}")
-
-        # Check if it's the expected 501 error
-        if "501" in str(e) or "Not Implemented" in str(e):
-            print(f"\n   This is the expected behavior - the server returns:")
-            print(f"   HTTP 501 (Not Implemented) until data layer is added.")
-            print(f"\n   However, the request was properly formatted with")
-            print(f"   the correct headers and authentication!")
+        print(f"\n   Make sure:")
+        print(f"   1. The server is running: python -m src.main")
+        print(f"   2. Server is accessible at: http://localhost:8000")
 
     print(f"\n{'='*60}")
     print("Testing different API versions:")

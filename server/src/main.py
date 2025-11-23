@@ -16,7 +16,9 @@ Endpoints:
 
 from datetime import datetime
 from typing import List, Optional
-from fastapi import FastAPI, Header, HTTPException, Query, Path, Depends
+import logging
+import time
+from fastapi import FastAPI, Header, HTTPException, Query, Path, Depends, Request
 from fastapi.responses import JSONResponse
 
 from .models import (
@@ -31,6 +33,20 @@ from .models import (
 
 
 # ============================================================================
+# Logging Configuration
+# ============================================================================
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logger = logging.getLogger("qiskit_runtime_server")
+
+
+# ============================================================================
 # FastAPI Application
 # ============================================================================
 
@@ -41,6 +57,66 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# ============================================================================
+# Request Logging Middleware
+# ============================================================================
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """
+    Log all incoming HTTP requests and responses.
+
+    Logs:
+    - Request method and path
+    - Client IP address
+    - Request headers (selected)
+    - Response status code
+    - Processing time
+    """
+    start_time = time.time()
+
+    # Extract client info
+    client_host = request.client.host if request.client else "unknown"
+
+    # Log request
+    logger.info(f"→ {request.method} {request.url.path} from {client_host}")
+
+    # Log important headers
+    if "authorization" in request.headers:
+        auth_header = request.headers["authorization"]
+        # Mask token for security
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            masked_token = token[:10] + "..." if len(token) > 10 else "***"
+            logger.debug(f"  Auth: Bearer {masked_token}")
+
+    if "ibm-api-version" in request.headers:
+        logger.debug(f"  API Version: {request.headers['ibm-api-version']}")
+
+    if "service-crn" in request.headers:
+        crn = request.headers["service-crn"]
+        # Show abbreviated CRN
+        if len(crn) > 50:
+            logger.debug(f"  Service-CRN: {crn[:47]}...")
+        else:
+            logger.debug(f"  Service-CRN: {crn}")
+
+    # Process request
+    response = await call_next(request)
+
+    # Calculate processing time
+    process_time = time.time() - start_time
+
+    # Log response
+    status_emoji = "✓" if response.status_code < 400 else "✗"
+    logger.info(
+        f"← {status_emoji} {response.status_code} {request.method} {request.url.path} "
+        f"({process_time*1000:.2f}ms)"
+    )
+
+    return response
 
 
 # ============================================================================
@@ -455,10 +531,20 @@ async def root() -> dict:
 if __name__ == "__main__":
     import uvicorn
 
+    logger.info("="*60)
+    logger.info("Starting Qiskit Runtime Backend API Server")
+    logger.info("="*60)
+    logger.info("Server: http://0.0.0.0:8000")
+    logger.info("Docs:   http://0.0.0.0:8000/docs")
+    logger.info("ReDoc:  http://0.0.0.0:8000/redoc")
+    logger.info("="*60)
+
     uvicorn.run(
-        "main:app",
+        "src.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level="info",
+        access_log=True,  # Enable access logs
+        use_colors=True,  # Colorful logs
     )

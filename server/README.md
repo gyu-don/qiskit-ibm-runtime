@@ -76,6 +76,14 @@ The server will be available at:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+You will see request logs like:
+```
+→ GET /v1/backends from 127.0.0.1
+← ✓ 200 GET /v1/backends (12.34ms)
+```
+
+See `docs/LOGGING.md` for detailed logging configuration.
+
 ### Production Mode
 
 ```bash
@@ -206,12 +214,12 @@ To implement actual functionality:
 
 ## Documentation
 
-See `docs/API_SPECIFICATION.md` for detailed API specifications, including:
-- Complete endpoint documentation
-- Request/response schemas
-- Authentication flows
-- Error handling
-- Examples
+Comprehensive documentation is available in the `docs/` directory:
+
+- **`API_SPECIFICATION.md`** - Complete API reference with examples
+- **`CLIENT_SERVER_MAPPING.md`** - Client-to-server mapping guide
+- **`DEVELOPMENT_GUIDE.md`** - Implementation guide
+- **`LOGGING.md`** - Logging configuration and troubleshooting
 
 ## Related Resources
 

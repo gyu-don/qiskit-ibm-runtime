@@ -23,11 +23,12 @@ python -m src.main
 
 ### 2. クライアントライブラリのインストール
 
-サンプルコードを実行するには、qiskit-ibm-runtimeがインストールされている必要があります：
+サンプルコードを実行するには、qiskit-ibm-runtimeとrequestsがインストールされている必要があります：
 
 ```bash
 # リポジトリのルートディレクトリで
 pip install -e .
+pip install requests  # HTTP通信用（サーバーチェックに使用）
 ```
 
 ## サンプルコード一覧
@@ -278,7 +279,22 @@ Service-CRN: {service-instance-crn}
 IBM-API-Version: 2025-05-01
 ```
 
-ローカルテストでは、トークンとCRNは任意の文字列で構いません。
+**ローカルテストの重要な注意点**:
+- ✅ トークンは任意の文字列でOK（例: "test-token"）
+- ⚠️ **`instance`パラメータは指定しない** - 指定するとIBM Cloudへの検証が走ります
+- ✅ `verify=False` でSSL検証を無効化
+- ✅ サーバー側ではヘッダーの検証はされません（モック段階）
+
+**正しい接続例**:
+```python
+service = QiskitRuntimeService(
+    channel="ibm_quantum_platform",
+    token="test-token",
+    url="http://localhost:8000",
+    # instance は指定しない！
+    verify=False
+)
+```
 
 ## 現在の実装状況
 
@@ -297,13 +313,38 @@ IBM-API-Version: 2025-05-01
 ### サーバーに接続できない
 
 ```
-Error: Connection refused
+ConnectionRefusedError: [Errno 111] Connection refused
 ```
 
 **解決策**: サーバーが起動していることを確認してください：
 ```bash
 cd server
 python -m src.main
+```
+
+### IBM Cloud認証エラー
+
+```
+HTTPConnectionPool(host='iam.localhost', port=80): Max retries exceeded
+InvalidAccountError: Unable to retrieve instances
+```
+
+**原因**: `instance`パラメータを指定するとIBM Cloudの認証サーバーに接続しようとします
+
+**解決策**: `instance`パラメータを削除してください：
+```python
+# ✗ NG - IBM Cloudに接続しようとする
+service = QiskitRuntimeService(
+    url="http://localhost:8000",
+    instance="crn:...",  # これが原因
+)
+
+# ✓ OK - ローカルサーバーのみ使用
+service = QiskitRuntimeService(
+    url="http://localhost:8000",
+    token="test-token",
+    verify=False
+)
 ```
 
 ### 501 エラーが返される

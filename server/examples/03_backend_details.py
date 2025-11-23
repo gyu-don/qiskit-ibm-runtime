@@ -94,7 +94,7 @@ def main():
         channel="ibm_quantum_platform",
         token="test-token",
         url="http://localhost:8000",
-        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/test:test::",
+        # instance parameter omitted to skip IBM Cloud validation
         verify=False
     )
 

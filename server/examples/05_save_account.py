@@ -15,7 +15,6 @@ def save_local_account():
         channel="ibm_quantum_platform",
         token="test-token-local",
         url="http://localhost:8000",
-        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/test:local::",
         name="local_mock_server",  # Give it a name
         set_as_default=False,  # Don't set as default (to avoid conflicts)
         overwrite=True  # Overwrite if already exists

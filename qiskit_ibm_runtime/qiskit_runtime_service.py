@@ -229,24 +229,14 @@ class QiskitRuntimeService:
         self._region = region or self._account.region
         self._plans_preference = plans_preference or self._account.plans_preference
         self._tags = tags or self._account.tags
-
-        # For localhost URLs, auto-set a mock instance if not provided
-        is_localhost = self._account.url and (
-            "localhost" in self._account.url or "127.0.0.1" in self._account.url
-        )
-        if is_localhost and not self._account.instance:
-            self._account.instance = "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance"
-
         if self._account.instance:
-            # Skip instance validation for localhost URLs (local testing)
-            if not is_localhost:
-                if self._account.instance not in [inst["crn"] for inst in self.instances()]:
-                    raise IBMInputValueError(
-                        "The given API token is associated with an account that does not have access to "
-                        f"the instance {self._account.instance}. "
-                        "To use this instance, use an API token generated from the account "
-                        "with this instance available."
-                    )
+            if self._account.instance not in [inst["crn"] for inst in self.instances()]:
+                raise IBMInputValueError(
+                    "The given API token is associated with an account that does not have access to "
+                    f"the instance {self._account.instance}. "
+                    "To use this instance, use an API token generated from the account "
+                    "with this instance available."
+                )
             self._default_instance = True
             self._api_clients = {self._account.instance: RuntimeClient(self._client_params)}
         else:
@@ -441,6 +431,12 @@ class QiskitRuntimeService:
             account.proxies = proxies
         if verify is not None:
             account.verify = verify
+
+        # For localhost URLs, auto-set a mock instance if not provided (for local testing)
+        if not account.instance:
+            is_localhost = account.url and ("localhost" in account.url or "127.0.0.1" in account.url)
+            if is_localhost:
+                account.instance = "crn:v1:bluemix:public:quantum-computing:us-east:a/local-test::local-instance"
 
         # if instance is a name, change it to crn format
         if (

@@ -34,12 +34,11 @@ def test_list_backends(service):
         return False
 
 
-def test_backend_configuration(service, backend_name):
+def test_backend_configuration(service, backend):
     """Test GET /v1/backends/{id}/configuration"""
-    print(f"\n2. Testing: Get Backend Configuration ({backend_name})")
+    print(f"\n2. Testing: Get Backend Configuration ({backend.name})")
     print("-" * 60)
     try:
-        backend = service.backend(backend_name)
         config = backend.configuration()
         print(f"   ✓ Success: Retrieved configuration")
         print(f"     - Backend: {config.backend_name}")
@@ -52,12 +51,11 @@ def test_backend_configuration(service, backend_name):
         return False
 
 
-def test_backend_properties(service, backend_name):
+def test_backend_properties(service, backend):
     """Test GET /v1/backends/{id}/properties"""
-    print(f"\n3. Testing: Get Backend Properties ({backend_name})")
+    print(f"\n3. Testing: Get Backend Properties ({backend.name})")
     print("-" * 60)
     try:
-        backend = service.backend(backend_name)
         properties = backend.properties()
         print(f"   ✓ Success: Retrieved properties")
         print(f"     - Backend: {properties.backend_name}")
@@ -77,12 +75,11 @@ def test_backend_properties(service, backend_name):
         return False
 
 
-def test_backend_status(service, backend_name):
+def test_backend_status(service, backend):
     """Test GET /v1/backends/{id}/status"""
-    print(f"\n4. Testing: Get Backend Status ({backend_name})")
+    print(f"\n4. Testing: Get Backend Status ({backend.name})")
     print("-" * 60)
     try:
-        backend = service.backend(backend_name)
         status = backend.status()
         print(f"   ✓ Success: Retrieved status")
         print(f"     - Backend: {status.backend_name}")
@@ -95,20 +92,15 @@ def test_backend_status(service, backend_name):
         return False
 
 
-def test_backend_defaults(service, backend_name):
+def test_backend_defaults(service, backend):
     """Test GET /v1/backends/{id}/defaults (if available)"""
-    print(f"\n5. Testing: Get Backend Defaults ({backend_name})")
+    print(f"\n5. Testing: Get Backend Defaults ({backend.name})")
     print("-" * 60)
-    try:
-        backend = service.backend(backend_name)
-        # Note: defaults() method may not be directly exposed in the public API
-        # This is typically for pulse-level programming
-        print(f"   ⚠ Skipped: defaults() not in public API")
-        print(f"     (Used internally for pulse programming)")
-        return None
-    except Exception as e:
-        print(f"   ✗ Failed: {type(e).__name__}: {e}")
-        return False
+    # Note: defaults() method may not be directly exposed in the public API
+    # This is typically for pulse-level programming
+    print(f"   ⚠ Skipped: defaults() not in public API")
+    print(f"     (Used internally for pulse programming)")
+    return None
 
 
 def main():
@@ -137,12 +129,23 @@ def main():
 
     results.append(("List Backends", test_list_backends(service)))
 
-    # Test specific backend
-    backend_name = "ibm_brisbane"
-    results.append(("Backend Configuration", test_backend_configuration(service, backend_name)))
-    results.append(("Backend Properties", test_backend_properties(service, backend_name)))
-    results.append(("Backend Status", test_backend_status(service, backend_name)))
-    results.append(("Backend Defaults", test_backend_defaults(service, backend_name)))
+    # Get a backend for testing
+    print("\nGetting backend for detailed tests...")
+    try:
+        backends = service.backends()
+        if not backends:
+            print("✗ No backends available")
+            return
+        backend = backends[0]  # Use first backend
+        print(f"✓ Using backend: {backend.name}")
+    except Exception as e:
+        print(f"✗ Failed to get backends: {e}")
+        return
+
+    results.append(("Backend Configuration", test_backend_configuration(service, backend)))
+    results.append(("Backend Properties", test_backend_properties(service, backend)))
+    results.append(("Backend Status", test_backend_status(service, backend)))
+    results.append(("Backend Defaults", test_backend_defaults(service, backend)))
 
     # Summary
     print("\n" + "="*60)
@@ -162,11 +165,12 @@ def main():
     print(f"Failed: {failed}")
     print(f"Skipped: {skipped}")
 
-    print("\n" + "="*60)
-    print("Note: The local server currently returns 501 (Not Implemented)")
-    print("Once implemented, these tests should all pass.")
-    print("See: server/IMPLEMENTATION_STATUS.md")
-    print("="*60)
+    if failed > 0:
+        print("\n" + "="*60)
+        print("Note: Some tests failed. Make sure:")
+        print("  1. The server is running: python -m src.main")
+        print("  2. Server is accessible at: http://localhost:8000")
+        print("="*60)
 
 
 if __name__ == "__main__":

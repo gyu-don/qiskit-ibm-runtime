@@ -9,6 +9,16 @@ Estimator calculates ⟨ψ|H|ψ⟩ where:
 - H is an observable (Hamiltonian)
 """
 
+import sys
+import os
+
+# Add parent directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
+
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import RealAmplitudes
 from qiskit.quantum_info import SparsePauliOp
@@ -53,8 +63,8 @@ def example_basic_estimator(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults:")
     print(f"  Expectation value: {expectation_value:.4f}")
@@ -105,8 +115,8 @@ def example_parameterized_circuit(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults:")
     print(f"  Expectation value: {expectation_value:.4f}")
@@ -163,8 +173,8 @@ def example_multiple_observables(service, backend):
 
     print(f"\nResults:")
     for name, pub_result in zip(obs_names, result):
-        ev = pub_result.data.evs[0]
-        std = pub_result.data.stds[0]
+        ev = float(pub_result.data.evs.flat[0])
+        std = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
         print(f"  ⟨{name}⟩ = {ev:+.4f} ± {std:.4f}")
 
 
@@ -212,8 +222,8 @@ def example_with_error_mitigation(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults (with error mitigation):")
     print(f"  Expectation value: {expectation_value:+.4f}")
@@ -226,42 +236,30 @@ def main():
     print("Estimator Primitive Examples")
     print("="*60)
 
-    # Connect to service
-    print("\nConnecting to Qiskit Runtime Service...")
+    # Connect to local server
+    print("\nConnecting to localhost:8000...")
+    service = QiskitRuntimeService(
+        channel="ibm_quantum_platform",
+        token="test-token",
+        url="http://localhost:8000",
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+        verify=False
+    )
 
-    # For local server (when implemented):
-    # service = QiskitRuntimeService(
-    #     channel="ibm_quantum_platform",
-    #     token="test-token",
-    #     url="http://localhost:8000",
-    #     instance="crn:v1:bluemix:public:quantum-computing:us-east:a/test:test::",
-    #     verify=False
-    # )
-
-    # For IBM Quantum Platform:
+    # Get backend
     try:
-        service = QiskitRuntimeService()
-    except Exception as e:
-        print(f"Error connecting to service: {e}")
-        print("\nTo use this example:")
-        print("1. Save your IBM Quantum account:")
-        print("   QiskitRuntimeService.save_account(channel='ibm_quantum', token='YOUR_TOKEN')")
-        print("2. Or use the local mock server (when implemented)")
-        return
-
-    # Get a backend
-    print("Getting backend...")
-    try:
-        backend = service.least_busy(operational=True, simulator=False)
-        print(f"Selected backend: {backend.name}")
-    except Exception as e:
-        print(f"Error getting backend: {e}")
-        print("Trying to use a simulator...")
-        try:
-            backend = service.backend("ibmq_qasm_simulator")
-        except:
-            print("No backend available. Please check your account setup.")
+        backends = service.backends()
+        # Use fake_manila (5-qubit backend)
+        backend = next((b for b in backends if b.name == "fake_manila"), None)
+        if backend is None:
+            print("✗ Backend 'fake_manila' not found")
             return
+
+        print(f"✓ Selected backend: {backend.name} ({backend.num_qubits} qubits)")
+
+    except Exception as e:
+        print(f"✗ Error getting backend: {e}")
+        return
 
     # Run examples
     try:
@@ -272,8 +270,8 @@ def main():
 
     except Exception as e:
         print(f"\n⚠ Error running examples: {type(e).__name__}: {e}")
-        print("\nNote: If using local server, it needs to be implemented first.")
-        print("See server/IMPLEMENTATION_STATUS.md")
+        import traceback
+        traceback.print_exc()
 
     print("\n" + "="*60)
     print("Examples completed!")

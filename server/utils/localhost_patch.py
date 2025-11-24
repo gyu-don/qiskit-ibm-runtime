@@ -92,3 +92,32 @@ def apply_localhost_patch() -> None:
 
     CloudAuth.__init__ = _patched_cloudauth_init
     CloudAuth.get_headers = _patched_get_headers
+
+    # Patch 3: default_runtime_url_resolver to preserve localhost URLs
+    from qiskit_ibm_runtime import utils
+    _original_url_resolver = utils.default_runtime_url_resolver
+
+    def _patched_url_resolver(
+        url: str, instance: str, private_endpoint: bool = False, channel: str = "ibm_quantum_platform"
+    ) -> str:
+        """Patched URL resolver that preserves localhost URLs."""
+        # If it's localhost, don't transform the URL
+        if url and ("localhost" in url or "127.0.0.1" in url):
+            # Ensure URL ends with /v1 for API versioning
+            if not url.endswith("/v1"):
+                url = url.rstrip("/") + "/v1"
+            print(f"[localhost_patch] Preserving localhost URL: {url}")
+            return url
+
+        # For non-localhost URLs, use original resolver
+        result = _original_url_resolver(url, instance, private_endpoint, channel)
+        print(f"[localhost_patch] Transformed URL: {url} -> {result}")
+        return result
+
+    utils.default_runtime_url_resolver = _patched_url_resolver
+
+    # Also patch the reference in client_parameters module
+    from qiskit_ibm_runtime.api import client_parameters
+    client_parameters.default_runtime_url_resolver = _patched_url_resolver
+
+    print("[localhost_patch] URL resolver patched")

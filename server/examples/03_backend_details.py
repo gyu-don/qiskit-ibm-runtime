@@ -5,6 +5,9 @@ This example shows how to retrieve detailed information about a specific backend
 - Configuration (gates, topology, capabilities)
 - Properties (calibration data: T1, T2, errors)
 - Status (operational status, queue length)
+
+Note: Use fake backend names (e.g., fake_brisbane, fake_manila).
+      Run examples/02_list_backends.py to see all available backends.
 """
 
 import sys
@@ -111,7 +114,8 @@ def main():
     print(f"Connected to: http://localhost:8000")
 
     # Specify backend name (adjust as needed)
-    backend_name = "ibm_brisbane"
+    # Note: Use fake_ prefix for local fake backends
+    backend_name = "fake_brisbane"
 
     try:
         print(f"\nGetting backend: {backend_name}")
@@ -128,8 +132,10 @@ def main():
 
     except Exception as e:
         print(f"\n⚠ Error: {type(e).__name__}: {e}")
-        print("\nNote: The local server currently returns 501 (Not Implemented)")
-        print("See server/IMPLEMENTATION_STATUS.md for the implementation roadmap")
+        print("\nNote: Make sure:")
+        print("  1. The server is running (python -m src.main)")
+        print("  2. You're using a fake backend name (e.g., fake_brisbane, fake_manila)")
+        print("  3. Check available backends with examples/02_list_backends.py")
 
 
 if __name__ == "__main__":

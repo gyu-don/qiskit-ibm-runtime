@@ -7,26 +7,23 @@ expectation values of observables on quantum states.
 Estimator calculates ⟨ψ|H|ψ⟩ where:
 - |ψ⟩ is a quantum state prepared by a circuit
 - H is an observable (Hamiltonian)
-
-
-NOTE: This example uses FakeProviderForBackendV2 and QiskitRuntimeLocalService
-      directly because job execution over REST API has serialization limitations.
-      Backend endpoints (configuration, properties, status) work perfectly via REST.
 """
 
 import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import RealAmplitudes
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
-from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
-from qiskit_ibm_runtime import EstimatorV2 as Estimator
+from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2 as Estimator
 import numpy as np
 
 
@@ -239,34 +236,29 @@ def main():
     print("Estimator Primitive Examples")
     print("="*60)
 
-    # Connect to service
-    print("\nConnecting to local Qiskit Runtime Server...")
+    # Connect to local server
+    print("\nConnecting to localhost:8000...")
+    service = QiskitRuntimeService(
+        channel="ibm_quantum_platform",
+        token="test-token",
+        url="http://localhost:8000",
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+        verify=False
+    )
 
+    # Get backend
     try:
-        service = QiskitRuntimeService(
-            channel="ibm_quantum_platform",
-            token="test-token",
-            url="http://localhost:8000",
-            instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
-            verify=False
-        )
-        print("✓ Connected to: http://localhost:8000")
-    except Exception as e:
-        print(f"✗ Error connecting to service: {e}")
-        print("\nMake sure:")
-        print("  1. The server is running: python -m src.main")
-        print("  2. Server is accessible at: http://localhost:8000")
-        return
+        backends = service.backends()
+        # Use fake_manila (5-qubit backend)
+        backend = next((b for b in backends if b.name == "fake_manila"), None)
+        if backend is None:
+            print("✗ Backend 'fake_manila' not found")
+            return
 
-    # Get a backend
-    print("\nGetting backend...")
-    try:
-        # Use a fake backend from local server
-        backend = service.backend("fake_manila")  # Small 5-qubit backend
         print(f"✓ Selected backend: {backend.name} ({backend.num_qubits} qubits)")
+
     except Exception as e:
         print(f"✗ Error getting backend: {e}")
-        print("Available backends can be listed with: service.backends()")
         return
 
     # Run examples

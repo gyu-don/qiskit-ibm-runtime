@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
     from qiskit_ibm_runtime.fake_provider.local_runtime_job import LocalRuntimeJob
 
+from qiskit_ibm_runtime.utils import RuntimeDecoder
 from .backend_provider import get_backend_provider
 
 
@@ -138,6 +139,24 @@ class JobManager:
 
         return job_id
 
+    def _deserialize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Deserialize parameters that contain encoded Qiskit objects.
+
+        The params may contain special dictionaries with '__type__' and '__value__' keys
+        that represent serialized Qiskit objects (QuantumCircuit, ObservablesArray, etc.).
+        This method converts them back to their original Python objects.
+
+        Args:
+            params: Parameters dictionary from HTTP request
+
+        Returns:
+            Deserialized parameters with Qiskit objects reconstructed
+        """
+        # Re-encode as JSON and decode with RuntimeDecoder to reconstruct Qiskit objects
+        json_str = json.dumps(params)
+        return json.loads(json_str, cls=RuntimeDecoder)
+
     def _execute_job(
         self,
         job_id: str,
@@ -162,6 +181,9 @@ class JobManager:
             with self._lock:
                 job_info.status = JobStatus.RUNNING
 
+            # Deserialize parameters to reconstruct Qiskit objects
+            deserialized_params = self._deserialize_params(job_info.params)
+
             # Prepare options with backend
             runtime_options = options.copy()
             runtime_options['backend'] = backend
@@ -169,7 +191,7 @@ class JobManager:
             # Execute job
             runtime_job = self.service._run(
                 program_id=job_info.program_id,
-                inputs=job_info.params,
+                inputs=deserialized_params,
                 options=runtime_options,
                 calibration_id=None
             )

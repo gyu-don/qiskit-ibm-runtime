@@ -11,9 +11,6 @@ Session benefits:
 - Efficient for optimization loops
 
 
-NOTE: This example uses FakeProviderForBackendV2 and QiskitRuntimeLocalService
-      directly because job execution over REST API has serialization limitations.
-      Backend endpoints (configuration, properties, status) work perfectly via REST.
 """
 
 
@@ -21,14 +18,17 @@ import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
 
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import RealAmplitudes
 from qiskit.quantum_info import SparsePauliOp
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
-from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
+from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_ibm_runtime import Session, EstimatorV2 as Estimator
 import numpy as np
 

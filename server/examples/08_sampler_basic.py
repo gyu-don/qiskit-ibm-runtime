@@ -6,23 +6,21 @@ measurement results from quantum circuits.
 
 Sampler returns quasi-probability distributions (measurement counts)
 from executing quantum circuits.
-
-NOTE: This example uses FakeProviderForBackendV2 and QiskitRuntimeLocalService
-      directly because job execution over REST API has serialization limitations.
-      Backend endpoints (configuration, properties, status) work perfectly via REST.
 """
 
 import sys
 import os
 
 # Add parent directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Apply localhost patch BEFORE importing QiskitRuntimeService
+from utils.localhost_patch import apply_localhost_patch
+apply_localhost_patch()
 
 from qiskit import QuantumCircuit
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-from qiskit_ibm_runtime.fake_provider import FakeProviderForBackendV2
-from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
-from qiskit_ibm_runtime import SamplerV2 as Sampler
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler
 
 
 def create_bell_circuit():
@@ -172,24 +170,30 @@ def main():
     print("Sampler Primitive Examples")
     print("="*60)
 
-    # Get provider and backend
-    print("\nSetting up FakeProvider...")
+    # Connect to local server
+    print("\nConnecting to localhost:8000...")
+    service = QiskitRuntimeService(
+        channel="ibm_quantum_platform",
+        token="test-token",
+        url="http://localhost:8000",
+        instance="crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+        verify=False
+    )
 
+    # Get backend
     try:
-        provider = FakeProviderForBackendV2()
-        backend = provider.backend("fake_manila")  # Small 5-qubit backend
+        backends = service.backends()
+        # Use fake_manila (5-qubit backend)
+        backend = next((b for b in backends if b.name == "fake_manila"), None)
+        if backend is None:
+            print("✗ Backend 'fake_manila' not found")
+            return
+
         print(f"✓ Selected backend: {backend.name} ({backend.num_qubits} qubits)")
 
-        # Note: You can also test backend properties here
-        config = backend.configuration()
-        print(f"  Backend version: {config.backend_version}")
-        print(f"  Basis gates: {', '.join(config.basis_gates[:5])}{'...' if len(config.basis_gates) > 5 else ''}")
     except Exception as e:
         print(f"✗ Error getting backend: {e}")
         return
-
-    # Create local service for job execution
-    service = QiskitRuntimeLocalService()
 
     # Run examples
     try:

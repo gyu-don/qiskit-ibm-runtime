@@ -18,8 +18,11 @@ from datetime import datetime
 from typing import List, Optional
 import logging
 import time
+import json
 from fastapi import FastAPI, Header, HTTPException, Query, Path, Depends, Request
 from fastapi.responses import JSONResponse
+
+from qiskit_ibm_runtime.utils import RuntimeEncoder
 
 from .models import (
     BackendsResponse,
@@ -610,7 +613,6 @@ async def get_job_status_endpoint(
 
 @app.get(
     "/v1/jobs/{job_id}/results",
-    response_model=JobResultResponse,
     tags=["jobs"],
     summary="Get Job Results",
     description="""
@@ -623,7 +625,7 @@ async def get_job_results(
     job_id: str = Path(..., description="Job ID"),
     api_version: str = Depends(verify_api_version),
     auth: dict = Depends(verify_authorization),
-) -> JobResultResponse:
+):
     """
     Get job results.
 
@@ -633,7 +635,7 @@ async def get_job_results(
         auth: Authentication information
 
     Returns:
-        JobResultResponse with results
+        JSONResponse with results serialized using RuntimeEncoder
 
     Raises:
         HTTPException: 404 if job not found, 400 if job not completed
@@ -652,15 +654,15 @@ async def get_job_results(
             detail=f"Job not completed. Current status: {status['state']['status']}"
         )
 
-    # Get results
+    # Get results (PrimitiveResult object)
     result = job_manager.get_job_result(job_id)
     if result is None:
         raise HTTPException(status_code=500, detail="Failed to retrieve results")
 
-    return JobResultResponse(
-        results=result['results'],
-        metadata=result['metadata']
-    )
+    # Serialize using RuntimeEncoder to preserve Qiskit object types
+    # The client expects the result directly, not wrapped in a dict
+    json_str = json.dumps(result, cls=RuntimeEncoder)
+    return JSONResponse(content=json.loads(json_str))
 
 
 @app.delete(

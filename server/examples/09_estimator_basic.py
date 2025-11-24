@@ -63,8 +63,8 @@ def example_basic_estimator(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults:")
     print(f"  Expectation value: {expectation_value:.4f}")
@@ -115,8 +115,8 @@ def example_parameterized_circuit(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults:")
     print(f"  Expectation value: {expectation_value:.4f}")
@@ -173,8 +173,8 @@ def example_multiple_observables(service, backend):
 
     print(f"\nResults:")
     for name, pub_result in zip(obs_names, result):
-        ev = pub_result.data.evs[0]
-        std = pub_result.data.stds[0]
+        ev = float(pub_result.data.evs.flat[0])
+        std = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
         print(f"  ⟨{name}⟩ = {ev:+.4f} ± {std:.4f}")
 
 
@@ -222,8 +222,8 @@ def example_with_error_mitigation(service, backend):
     result = job.result()
     pub_result = result[0]
 
-    expectation_value = pub_result.data.evs[0]
-    std_error = pub_result.data.stds[0]
+    expectation_value = float(pub_result.data.evs.flat[0])
+    std_error = float(pub_result.data.stds) if isinstance(pub_result.data.stds, (int, float)) else float(pub_result.data.stds.flat[0])
 
     print(f"\nResults (with error mitigation):")
     print(f"  Expectation value: {expectation_value:+.4f}")

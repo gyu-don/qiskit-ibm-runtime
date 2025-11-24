@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime.fake_provider.local_service import QiskitRuntimeLocalService
     from qiskit_ibm_runtime.fake_provider.local_runtime_job import LocalRuntimeJob
 
-from qiskit_ibm_runtime.utils import RuntimeDecoder
+from qiskit_ibm_runtime.utils import RuntimeDecoder, RuntimeEncoder
 from .backend_provider import get_backend_provider
 
 
@@ -255,7 +255,7 @@ class JobManager:
 
         return status_dict
 
-    def get_job_result(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job_result(self, job_id: str) -> Optional[Any]:
         """
         Get job result.
 
@@ -263,7 +263,7 @@ class JobManager:
             job_id: Job ID
 
         Returns:
-            Result dictionary or None if not found or not completed
+            Result object (PrimitiveResult) or None if not found or not completed
         """
         job_info = self.get_job(job_id)
         if job_info is None:
@@ -275,70 +275,9 @@ class JobManager:
         if job_info.result_data is None:
             return None
 
-        # Convert result to dictionary format
-        try:
-            # For PrimitiveResult, convert to serializable format
-            result_dict = self._convert_result_to_dict(job_info.result_data)
-            return {
-                'results': result_dict,
-                'metadata': {}
-            }
-        except Exception:
-            return None
-
-    def _convert_result_to_dict(self, result: Any) -> Any:
-        """
-        Convert result object to dictionary.
-
-        Args:
-            result: Result object
-
-        Returns:
-            Serializable dictionary
-        """
-        # Handle PrimitiveResult from Sampler/Estimator
-        if hasattr(result, '__iter__') and not isinstance(result, (str, dict)):
-            # Result is iterable (list of PubResults)
-            return [self._convert_pub_result(pub_result) for pub_result in result]
-        return {}
-
-    def _convert_pub_result(self, pub_result: Any) -> Dict[str, Any]:
-        """
-        Convert PubResult to dictionary.
-
-        Args:
-            pub_result: PubResult object
-
-        Returns:
-            Dictionary representation
-        """
-        result_dict = {}
-
-        # Extract data
-        if hasattr(pub_result, 'data'):
-            data = pub_result.data
-            result_dict['data'] = {}
-
-            # For Sampler results
-            if hasattr(data, 'meas'):
-                meas = data.meas
-                if hasattr(meas, 'get_counts'):
-                    result_dict['data']['counts'] = meas.get_counts()
-                if hasattr(meas, 'get_bitstrings'):
-                    bitstrings = meas.get_bitstrings()
-                    result_dict['data']['bitstrings'] = [str(bs) for bs in bitstrings]
-
-            # For Estimator results
-            if hasattr(data, 'evs'):
-                result_dict['data']['expectation_values'] = list(data.evs)
-            if hasattr(data, 'stds'):
-                result_dict['data']['standard_errors'] = list(data.stds)
-
-        # Extract metadata
-        if hasattr(pub_result, 'metadata'):
-            result_dict['metadata'] = pub_result.metadata
-
-        return result_dict
+        # Return the raw result object (PrimitiveResult)
+        # It will be serialized using RuntimeEncoder in the API endpoint
+        return job_info.result_data
 
     def cancel_job(self, job_id: str) -> bool:
         """

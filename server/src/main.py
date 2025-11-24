@@ -38,9 +38,13 @@ from .models import (
     JobListResponse,
     JobProgram,
     JobState,
+    SessionCreateRequest,
+    SessionResponse,
+    SessionUpdateRequest,
 )
 from .backend_provider import get_backend_provider
 from .job_manager import get_job_manager
+from .session_manager import get_session_manager
 
 
 # ============================================================================
@@ -540,7 +544,8 @@ async def create_job(
             program_id=request.program_id,
             backend_name=request.backend,
             params=request.params,
-            options=request.options
+            options=request.options,
+            session_id=request.session_id
         )
 
         # Get job status
@@ -764,6 +769,190 @@ async def list_jobs(
         jobs=jobs,
         count=len(jobs)
     )
+
+
+# ============================================================================
+# Session Endpoints
+# ============================================================================
+
+@app.post(
+    "/v1/sessions",
+    response_model=SessionResponse,
+    status_code=201,
+    tags=["sessions"],
+    summary="Create Runtime Session",
+    description="""
+    Create a new runtime session for grouping related jobs.
+
+    Sessions support two modes:
+    - 'dedicated': Jobs run sequentially (for iterative algorithms like VQE)
+    - 'batch': Jobs run in parallel (for independent workloads)
+
+    Required IAM action: quantum-computing.session.create
+    """
+)
+async def create_session(
+    request: SessionCreateRequest,
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> SessionResponse:
+    """
+    Create a new runtime session.
+
+    Args:
+        request: Session creation request
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        SessionResponse with session ID and details
+
+    Raises:
+        HTTPException: 400 if invalid parameters
+    """
+    session_manager = get_session_manager()
+
+    try:
+        session_id = session_manager.create_session(
+            mode=request.mode,
+            backend_name=request.backend,
+            instance=request.instance,
+            max_ttl=request.max_ttl
+        )
+
+        # Get session details
+        session_info = session_manager.get_session(session_id)
+        if session_info is None:
+            raise HTTPException(status_code=500, detail="Failed to create session")
+
+        session_dict = session_info.to_dict()
+
+        return SessionResponse(**session_dict)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get(
+    "/v1/sessions/{session_id}",
+    response_model=SessionResponse,
+    tags=["sessions"],
+    summary="Get Session Details",
+    description="""
+    Get details of a runtime session.
+
+    Required IAM action: quantum-computing.session.read
+    """
+)
+async def get_session_details(
+    session_id: str = Path(..., description="Session ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> SessionResponse:
+    """
+    Get session details.
+
+    Args:
+        session_id: Session ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        SessionResponse with current session details
+
+    Raises:
+        HTTPException: 404 if session not found
+    """
+    session_manager = get_session_manager()
+    session_info = session_manager.get_session(session_id)
+
+    if session_info is None:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    session_dict = session_info.to_dict()
+    return SessionResponse(**session_dict)
+
+
+@app.patch(
+    "/v1/sessions/{session_id}",
+    response_model=SessionResponse,
+    tags=["sessions"],
+    summary="Update Session",
+    description="""
+    Update session settings (e.g., stop accepting new jobs).
+
+    Required IAM action: quantum-computing.session.update
+    """
+)
+async def update_session(
+    request: SessionUpdateRequest,
+    session_id: str = Path(..., description="Session ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+) -> SessionResponse:
+    """
+    Update session settings.
+
+    Args:
+        request: Session update request
+        session_id: Session ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Returns:
+        SessionResponse with updated session details
+
+    Raises:
+        HTTPException: 404 if session not found
+    """
+    session_manager = get_session_manager()
+
+    # Update session
+    if not session_manager.close_session(session_id, accepting_jobs=request.accepting_jobs):
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    # Get updated details
+    session_info = session_manager.get_session(session_id)
+    if session_info is None:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    session_dict = session_info.to_dict()
+    return SessionResponse(**session_dict)
+
+
+@app.delete(
+    "/v1/sessions/{session_id}/close",
+    status_code=204,
+    tags=["sessions"],
+    summary="Cancel Session",
+    description="""
+    Cancel a session and all its queued jobs.
+
+    Required IAM action: quantum-computing.session.delete
+    """
+)
+async def cancel_session(
+    session_id: str = Path(..., description="Session ID"),
+    api_version: str = Depends(verify_api_version),
+    auth: dict = Depends(verify_authorization),
+):
+    """
+    Cancel a session.
+
+    Args:
+        session_id: Session ID
+        api_version: IBM API version from header
+        auth: Authentication information
+
+    Raises:
+        HTTPException: 404 if session not found
+    """
+    session_manager = get_session_manager()
+
+    if not session_manager.cancel_session(session_id):
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    return None
 
 
 # ============================================================================

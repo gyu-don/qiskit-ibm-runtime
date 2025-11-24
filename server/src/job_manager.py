@@ -43,7 +43,8 @@ class JobInfo:
         program_id: str,
         backend_name: str,
         params: Dict[str, Any],
-        created_at: datetime
+        created_at: datetime,
+        session_id: Optional[str] = None
     ):
         """
         Initialize job info.
@@ -54,12 +55,14 @@ class JobInfo:
             backend_name: Backend name
             params: Job parameters
             created_at: Creation timestamp
+            session_id: Optional session ID
         """
         self.job_id = job_id
         self.program_id = program_id
         self.backend_name = backend_name
         self.params = params
         self.created_at = created_at
+        self.session_id = session_id
         self.status = JobStatus.QUEUED
         self.runtime_job: Optional[Any] = None  # LocalRuntimeJob, using Any to avoid import
         self.error_message: Optional[str] = None
@@ -87,7 +90,8 @@ class JobManager:
         program_id: str,
         backend_name: str,
         params: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None
+        options: Optional[Dict[str, Any]] = None,
+        session_id: Optional[str] = None
     ) -> str:
         """
         Create a new runtime job.
@@ -97,12 +101,13 @@ class JobManager:
             backend_name: Backend to run on
             params: Job parameters
             options: Runtime options
+            session_id: Optional session ID to associate this job with
 
         Returns:
             Job ID
 
         Raises:
-            ValueError: If backend not found or invalid program
+            ValueError: If backend not found, invalid program, or session issues
         """
         # Validate backend
         backend = self.backend_provider.get_backend(backend_name)
@@ -113,6 +118,25 @@ class JobManager:
         if program_id not in ['sampler', 'estimator']:
             raise ValueError(f"Invalid program_id: {program_id}")
 
+        # Validate session if provided
+        if session_id is not None:
+            from .session_manager import get_session_manager
+            session_manager = get_session_manager()
+
+            session_info = session_manager.get_session(session_id)
+            if session_info is None:
+                raise ValueError(f"Session not found: {session_id}")
+
+            if not session_manager.is_accepting_jobs(session_id):
+                raise ValueError(f"Session is not accepting jobs: {session_id}")
+
+            # Validate backend matches session backend
+            if session_info.backend_name != backend_name:
+                raise ValueError(
+                    f"Backend mismatch: job backend '{backend_name}' != "
+                    f"session backend '{session_info.backend_name}'"
+                )
+
         # Generate job ID
         job_id = f"job-{uuid.uuid4()}"
 
@@ -122,12 +146,19 @@ class JobManager:
             program_id=program_id,
             backend_name=backend_name,
             params=params,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
+            session_id=session_id
         )
 
         # Store job
         with self._lock:
             self.jobs[job_id] = job_info
+
+        # Add job to session if provided
+        if session_id is not None:
+            from .session_manager import get_session_manager
+            session_manager = get_session_manager()
+            session_manager.add_job_to_session(session_id, job_id)
 
         # Start job execution in background
         thread = threading.Thread(
@@ -250,7 +281,7 @@ class JobManager:
                 'reason': job_info.error_message
             },
             'created': job_info.created_at.isoformat() + 'Z',
-            'session_id': job_info.job_id,  # In local mode, session_id = job_id
+            'session_id': job_info.session_id or job_info.job_id,  # Use session_id if set, else job_id
         }
 
         return status_dict

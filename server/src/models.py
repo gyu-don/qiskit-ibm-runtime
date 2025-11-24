@@ -565,6 +565,7 @@ class JobCreateRequest(BaseModel):
     backend: str = Field(..., description="Backend name to run on")
     params: Dict[str, Any] = Field(..., description="Job parameters including 'pubs' for inputs")
     options: Optional[Dict[str, Any]] = Field(None, description="Runtime options")
+    session_id: Optional[str] = Field(None, description="Optional session ID to associate this job with")
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -575,7 +576,8 @@ class JobCreateRequest(BaseModel):
             },
             "options": {
                 "default_shots": 1024
-            }
+            },
+            "session_id": "session-abc123"
         }
     })
 
@@ -630,5 +632,72 @@ class JobListResponse(BaseModel):
                 }
             ],
             "count": 1
+        }
+    })
+
+
+# ============================================================================
+# Session Models
+# ============================================================================
+
+class SessionMode(str):
+    """Session execution mode."""
+    DEDICATED = "dedicated"  # Sequential execution (Session)
+    BATCH = "batch"          # Parallel execution (Batch)
+
+
+class SessionCreateRequest(BaseModel):
+    """Request to create a new session."""
+    mode: str = Field(..., description="Session mode: 'dedicated' or 'batch'")
+    backend: str = Field(..., description="Backend name")
+    instance: Optional[str] = Field(None, description="IBM Cloud instance CRN")
+    max_ttl: Optional[int] = Field(None, description="Maximum time-to-live in seconds")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "mode": "dedicated",
+            "backend": "fake_manila",
+            "instance": "crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+            "max_ttl": 28800
+        }
+    })
+
+
+class SessionResponse(BaseModel):
+    """Response for session operations."""
+    id: str = Field(..., description="Session ID")
+    mode: str = Field(..., description="Session mode: 'dedicated' or 'batch'")
+    backend: str = Field(..., description="Backend name")
+    instance: Optional[str] = Field(None, description="IBM Cloud instance CRN")
+    max_ttl: Optional[int] = Field(None, description="Maximum time-to-live in seconds")
+    created_at: str = Field(..., description="Creation timestamp (ISO 8601)")
+    accepting_jobs: bool = Field(..., description="Whether session is accepting new jobs")
+    active: bool = Field(..., description="Whether session is active")
+    elapsed_time: Optional[int] = Field(None, description="Seconds since creation")
+    jobs: Optional[List[str]] = Field(None, description="List of job IDs in this session")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "id": "session-abc123",
+            "mode": "dedicated",
+            "backend": "fake_manila",
+            "instance": "crn:v1:bluemix:public:quantum-computing:us-east:a/local::local",
+            "max_ttl": 28800,
+            "created_at": "2024-11-24T10:00:00Z",
+            "accepting_jobs": True,
+            "active": True,
+            "elapsed_time": 150,
+            "jobs": ["job-1", "job-2", "job-3"]
+        }
+    })
+
+
+class SessionUpdateRequest(BaseModel):
+    """Request to update session settings."""
+    accepting_jobs: bool = Field(..., description="Whether to accept new jobs")
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "accepting_jobs": False
         }
     })
